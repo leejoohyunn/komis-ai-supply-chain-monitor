@@ -6,4 +6,3 @@ langchain-google-genai
 sentence-transformers
 torch
 transformers
-sentence-transformers
