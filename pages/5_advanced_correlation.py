@@ -127,7 +127,7 @@ col_left, col_center, col_right = st.columns([1, 2, 1])
 
 with col_center:
     try:
-        st.image("../image3.png", caption="그레인저 인과성 검정 결과", use_container_width=True)
+        st.image("../images/image3.png", caption="그레인저 인과성 검정 결과", use_container_width=True)
     except:
         st.error("image3.png 파일을 찾을 수 없습니다.")
 
