@@ -22,7 +22,7 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.documents import Document
 
 # Google API 키 하드코딩
-os.environ["GOOGLE_API_KEY"] = "AIzaSyBE12y8WHdGc9UC9ktsrkWZyJmzT2ZNcFo"
+os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"]
 
 
 # Streamlit 페이지 설정
@@ -152,17 +152,13 @@ def setup_rag_database(df):
     
     embedding_model = HuggingFaceEmbeddings(model_name="snunlp/KR-SBERT-V40K-klueNLI-augSTS")
     
-    client_settings = Settings(
-        chroma_db_impl="duckdb",
-        persist_directory="/tmp/chroma_db",
-        anonymized_telemetry=False
-    )
 
+    # persist_directory 제거하여 인메모리 모드 사용
     vectorstore = Chroma.from_documents(
         documents=splits,
         embedding=embedding_model,
-        persist_directory="/tmp/chroma_db",
-        client_settings=client_settings
+    # persist_directory="/tmp/chroma_db" ← 이 부분 제거
+        collection_name=f"rag_collection_{hash(str(splits[:10]))}"
     )
     
     return vectorstore, embedding_model
