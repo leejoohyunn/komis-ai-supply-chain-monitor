@@ -437,22 +437,22 @@ with col_nav3:
         st.switch_page("pages/5_advanced_correlation.py")
 
 # 📊 사이드바 - 실시간 상태
-with st.sidebar:
-    st.markdown("### 📊 실시간 시스템 상태")
+# with st.sidebar:
+#     st.markdown("### 📊 실시간 시스템 상태")
     
-    # 빠른 액션
-    st.markdown("**⚡ 빠른 액션**")
-    if st.button("📊 전체 데이터 새로고침", use_container_width=True):
-        st.cache_data.clear()
-        st.rerun()
+#     # 빠른 액션
+#     st.markdown("**⚡ 빠른 액션**")
+#     if st.button("📊 전체 데이터 새로고침", use_container_width=True):
+#         st.cache_data.clear()
+#         st.rerun()
     
-    if st.button("📋 보고서 생성", use_container_width=True):
-        with st.spinner("보고서 생성 중..."):
-            time.sleep(2)
-        st.success("보고서가 생성되었습니다!")
+#     if st.button("📋 보고서 생성", use_container_width=True):
+#         with st.spinner("보고서 생성 중..."):
+#             time.sleep(2)
+#         st.success("보고서가 생성되었습니다!")
     
-    if st.button("🔔 알림 설정", use_container_width=True):
-        st.info("알림 설정 페이지로 이동합니다.")
+#     if st.button("🔔 알림 설정", use_container_width=True):
+#         st.info("알림 설정 페이지로 이동합니다.")
 
 
 
