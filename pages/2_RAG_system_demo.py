@@ -9,6 +9,7 @@ from datetime import datetime
 import time
 
 # Langchain imports
+from chromadb.config import Settings  # 이 줄을 파일 상단에 추가
 from langchain_community.document_loaders import CSVLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
@@ -148,7 +149,19 @@ def setup_rag_database(df):
     splits = text_splitter.split_documents(all_docs)
     
     embedding_model = HuggingFaceEmbeddings(model_name="snunlp/KR-SBERT-V40K-klueNLI-augSTS")
-    vectorstore = Chroma.from_documents(documents=splits, embedding=embedding_model, persist_directory="/tmp/chroma_db")
+    
+    client_settings = Settings(
+        chroma_db_impl="duckdb",
+        persist_directory="/tmp/chroma_db",
+        anonymized_telemetry=False
+    )
+
+    vectorstore = Chroma.from_documents(
+        documents=splits,
+        embedding=embedding_model,
+        persist_directory="/tmp/chroma_db",
+        client_settings=client_settings
+    )
     
     return vectorstore, embedding_model
 
