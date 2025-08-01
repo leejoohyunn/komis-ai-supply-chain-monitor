@@ -1,6 +1,15 @@
 import os
 os.environ["CHROMA_SERVER"] = "false"
 
+# SQLite 버전 문제 해결
+import sys
+import pysqlite3
+sys.modules["sqlite3"] = pysqlite3
+
+# 그 다음에 chromadb import
+import chromadb
+from langchain_community.vectorstores import Chroma
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -14,7 +23,6 @@ import time
 from chromadb.config import Settings  # 이 줄을 파일 상단에 추가
 from langchain_community.document_loaders import CSVLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import Chroma
 # from langchain_community.embeddings import HuggingFaceEmbeddings  # 이 줄 제거
 from langchain_huggingface import HuggingFaceEmbeddings  # 새로운 import
 from langchain_google_genai import ChatGoogleGenerativeAI
