@@ -11,3 +11,4 @@ sqlite-vec==0.0.1a12
 hnswlib==0.8.0
 pysqlite3-binary
 numpy>=1.21.0,<2.0
+pandas
