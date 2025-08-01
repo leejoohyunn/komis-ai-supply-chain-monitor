@@ -1,14 +1,14 @@
+import os
+os.environ["CHROMA_SERVER"] = "false"
+
 import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 import json
-import os
 from datetime import datetime
 import time
-
-os.environ["CHROMA_SERVER"] = "false"
 
 # Langchain imports
 from chromadb.config import Settings  # 이 줄을 파일 상단에 추가
