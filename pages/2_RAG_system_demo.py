@@ -23,14 +23,8 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.documents import Document
 
 # Google API 키 설정 - Secrets 우선, fallback으로 하드코딩
-try:
-    os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"]
-    st.sidebar.success("✅ Secrets에서 API 키 로드 성공")
-except KeyError:
-    # Secrets가 설정되지 않은 경우 하드코딩된 키 사용
-    os.environ["GOOGLE_API_KEY"] = "AIzaSyBE12y8WHdGc9UC9ktsrkWZyJmzT2ZNcFo"
-    st.sidebar.warning("⚠️ Secrets 설정이 필요합니다. 임시로 하드코딩된 키를 사용합니다.")
-    st.sidebar.info("Manage app → Settings → Secrets에서 GOOGLE_API_KEY를 설정하세요.")
+os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"]
+st.sidebar.success("✅ API 키 로드 성공")
 
 
 # Streamlit 페이지 설정
