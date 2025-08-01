@@ -99,7 +99,7 @@ if 'initialized' not in st.session_state:
 @st.cache_data(ttl=3600)
 def load_dashboard_data():
     """대시보드용 핵심 데이터 로드"""
-    dates = pd.date_range(start='2023-01-01', end='2024-12-31', freq='M')
+    dates = pd.date_range(start='2023-01-01', end='2024-12-31', freq='ME')
     
     # 수급안정화지수 시뮬레이션
     supply_index = 50 + 15 * np.sin(np.arange(len(dates)) * 0.3) + np.random.normal(0, 5, len(dates))
