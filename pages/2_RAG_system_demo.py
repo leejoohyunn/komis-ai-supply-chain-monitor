@@ -137,9 +137,20 @@ def setup_rag_database(df):
         raw_date = str(row.get("날짜", "")).rstrip()
         
         try:
-            # YYMMDD 형식을 YYYYMM으로 변환 (160111 -> 201601)
-            if len(raw_date) == 6:
-                year_month = f"20{raw_date[:2]}{raw_date[2:4]}"
+            if len(raw_date) == 6 and raw_date.isdigit():
+                # YYYYMM vs YYMMDD 자동 감지
+                potential_year = raw_date[:4]
+                potential_month = raw_date[4:6]
+                
+                if (1900 <= int(potential_year) <= 2100 and 1 <= int(potential_month) <= 12):
+                    # YYYYMM 형식 (예: 202301)
+                    year_month = raw_date
+                else:
+                    # YYMMDD 형식 (예: 160111)
+                    yy = raw_date[:2]
+                    mm = raw_date[2:4]
+                    yyyy = f"20{yy}" if int(yy) <= 30 else f"19{yy}"
+                    year_month = f"{yyyy}{mm}"
             else:
                 year_month = ""
         except:
@@ -381,7 +392,26 @@ def main():
                         # 월별 데이터 분석 (YYMMDD -> YYYY-MM 형식으로 변환)
                         df['날짜'] = df['날짜'].astype(str)
                         # 160111 -> 201601 형식으로 변환
-                        df['년월'] = df['날짜'].apply(lambda x: f"20{x[:2]}{x[2:4]}" if len(x) >= 4 else x)
+                        def convert_date_format(date_str):
+                            date_str = str(date_str).strip()
+                            if len(date_str) == 6 and date_str.isdigit():
+                                potential_year = date_str[:4]
+                                potential_month = date_str[4:6]
+                                
+                                if (1900 <= int(potential_year) <= 2100 and 1 <= int(potential_month) <= 12):
+                                    return date_str  # YYYYMM 형식 (202301)
+                                else:
+                                    # YYMMDD 형식 (160111)
+                                    yy = date_str[:2]
+                                    mm = date_str[2:4]
+                                    yyyy = f"20{yy}" if int(yy) <= 30 else f"19{yy}"
+                                    return f"{yyyy}{mm}"
+                            elif len(date_str) >= 4:
+                                return f"20{date_str[:2]}{date_str[2:4]}"
+                            else:
+                                return date_str
+                        
+                        df['년월'] = df['날짜'].apply(convert_date_format)
                         
                         available_months = sorted(df[df['광물이름'] == selected_mineral]['년월'].unique())
                         
