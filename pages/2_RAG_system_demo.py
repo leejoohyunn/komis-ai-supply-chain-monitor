@@ -15,7 +15,8 @@ from chromadb.config import Settings  # 이 줄을 파일 상단에 추가
 from langchain_community.document_loaders import CSVLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
-from langchain_community.embeddings import HuggingFaceEmbeddings
+# from langchain_community.embeddings import HuggingFaceEmbeddings  # 이 줄 제거
+from langchain_huggingface import HuggingFaceEmbeddings  # 새로운 import
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
