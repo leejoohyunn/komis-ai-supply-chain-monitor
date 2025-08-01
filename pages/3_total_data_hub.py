@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 from datetime import datetime, timedelta
 import io
+import os
 
 st.set_page_config(
     page_title="통합 데이터 허브",
@@ -55,18 +56,23 @@ def add_paper_citation():
     col_image, col_citation = st.columns([1, 2])
     
     with col_image:
-        # 이미지 파일이 있다고 가정하고 표시
         try:
-            st.image("../images/image2.png", caption="Jia, S.(2025)의 핵심 광물 공급리스크 평가 지표 체계", width=300)
-        except:
-            # 이미지가 없는 경우 플레이스홀더 표시
+            # 현재 파일 위치에서 ../images/image2.png 절대 경로 계산
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            image_path = os.path.join(current_dir, "..", "images", "image2.png")
+    
+            # 이미지 표시
+            st.image(image_path, caption="Jia, S.(2025)의 핵심 광물 공급리스크 평가 지표 체계", width=300)
+    
+        except Exception as e:
+            # 이미지가 없을 경우 마크다운 플레이스홀더 표시
             st.markdown("""
             <div style="background-color: #f5f5f5; padding: 20px; border-radius: 10px; text-align: center; border: 2px dashed #ccc; margin-bottom: 5px;">
                 <p style="margin: 0;">📊 image2.png</p>
                 <p style="margin: 5px 0 0 0;"><small>이미지 파일을 업로드해주세요</small></p>
             </div>
             """, unsafe_allow_html=True)
-    
+        
     with col_citation:
         st.markdown("""
         <div style="margin-top: 10px;">
