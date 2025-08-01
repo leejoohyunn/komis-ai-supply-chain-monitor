@@ -57,7 +57,7 @@ def add_paper_citation():
     with col_image:
         # 이미지 파일이 있다고 가정하고 표시
         try:
-            st.image("../image2.png", caption="Jia, S.(2025)의 핵심 광물 공급리스크 평가 지표 체계", width=300)
+            st.image("../images/image2.png", caption="Jia, S.(2025)의 핵심 광물 공급리스크 평가 지표 체계", width=300)
         except:
             # 이미지가 없는 경우 플레이스홀더 표시
             st.markdown("""
