@@ -148,7 +148,7 @@ def setup_rag_database(df):
     splits = text_splitter.split_documents(all_docs)
     
     embedding_model = HuggingFaceEmbeddings(model_name="snunlp/KR-SBERT-V40K-klueNLI-augSTS")
-    vectorstore = Chroma.from_documents(documents=splits, embedding=embedding_model)
+    vectorstore = Chroma.from_documents(documents=splits, embedding=embedding_model, persist_directory="/tmp/chroma_db")
     
     return vectorstore, embedding_model
 
