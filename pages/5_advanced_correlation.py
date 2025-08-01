@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 from scipy import stats
 from datetime import datetime, timedelta
-
+import os
 st.set_page_config(
     page_title="그레인저 인과성 분석",
     layout="wide"
@@ -125,11 +125,18 @@ st.markdown("### 🔸 그레인저 인과성 검정 결과")
 # 이미지 중앙 정렬을 위한 컬럼 사용
 col_left, col_center, col_right = st.columns([1, 2, 1])
 
+
 with col_center:
     try:
-        st.image("../images/image3.png", caption="그레인저 인과성 검정 결과", use_container_width=True)
-    except:
-        st.error("image3.png 파일을 찾을 수 없습니다.")
+        # 현재 파일 기준으로 images 폴더 경로 계산
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        image_path = os.path.join(current_dir, "..", "images", "image3.png")
+
+        # Streamlit에서 이미지 표시
+        st.image(image_path, caption="그레인저 인과성 검정 결과", use_container_width=True)
+    except Exception as e:
+        st.error(f"image3.png 파일을 찾을 수 없습니다. 오류: {e}")
+
 
 
 # col1, col2 = st.columns([2, 1])
