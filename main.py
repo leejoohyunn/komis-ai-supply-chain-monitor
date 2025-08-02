@@ -213,174 +213,138 @@ current_risk = st.session_state.current_risk_level
 #         help="향후 3개월 내 공급 중단 가능성"
 #     )
 
-# 📈 메인 차트 섹션
-st.markdown("### 🔸 실시간 수급 모니터링")
+# 📈 메인 차트 섹션# st.markdown("### 🔸 실시간 수급 모니터링")
 
-# KAN 모델 예측 결과 데이터 (첨부된 이미지 기반)
+# KAN 모델 예측 결과 데이터 (전체 시계열)
 @st.cache_data
 def get_kan_prediction_data():
-    """KAN 모델의 백테스팅 결과 데이터"""
+    """KAN 모델의 전체 시계열 데이터"""
     
-    # 2021년 데이터
-    data_2021 = {
-        'dates': ['2021-01', '2021-02', '2021-03', '2021-04', '2021-05', '2021-06'],
-        'actual': [25.8, 17.3, 13.2, 21.5, 18.4, 12.1],
-        'predicted': [26.8, 24.4, 21.6, 19.5, 16.6, 12.8]
+    # 실제 수급안정화지수 데이터 (파란색)
+    actual_data = {
+        '2018-01-01': 66.26, '2018-02-01': 52.38, '2018-03-01': 47.69, '2018-04-01': 48.57,
+        '2018-05-01': 44.42, '2018-06-01': 41.73, '2018-07-01': 36.27, '2018-08-01': 46.92,
+        '2018-09-01': 49.69, '2018-10-01': 56.57, '2018-11-01': 59.53, '2018-12-01': 69.12,
+        '2019-01-01': 72.46, '2019-02-01': 65.48, '2019-03-01': 55.47, '2019-04-01': 52.35,
+        '2019-05-01': 54.25, '2019-06-01': 60.78, '2019-07-01': 60.04, '2019-08-01': 48.04,
+        '2019-09-01': 34.51, '2019-10-01': 25.11, '2019-11-01': 26.65, '2019-12-01': 37.26,
+        '2020-01-01': 47.78, '2020-02-01': 60.25, '2020-03-01': 60.75, '2020-04-01': 68.00,
+        '2020-05-01': 68.40, '2020-06-01': 62.49, '2020-07-01': 56.98, '2020-08-01': 49.71,
+        '2020-09-01': 39.97, '2020-10-01': 37.75, '2020-11-01': 35.01, '2020-12-01': 29.33,
+        '2021-01-01': 25.78, '2021-02-01': 17.27, '2021-03-01': 13.16, '2021-04-01': 21.46,
+        '2021-05-01': 18.41, '2021-06-01': 12.08, '2021-07-01': 11.30, '2021-08-01': 9.07,
+        '2021-09-01': 9.08, '2021-10-01': 8.79, '2021-11-01': 7.90, '2021-12-01': 10.16,
+        '2022-01-01': 8.81, '2022-02-01': 7.40, '2022-03-01': 6.24, '2022-04-01': 6.34,
+        '2022-05-01': 8.12, '2022-06-01': 7.59, '2022-07-01': 9.82, '2022-08-01': 16.42,
+        '2022-09-01': 16.37, '2022-10-01': 16.64, '2022-11-01': 17.82, '2022-12-01': 11.87,
+        '2023-01-01': 9.53, '2023-02-01': 9.59, '2023-03-01': 13.99, '2023-04-01': 19.88,
+        '2023-05-01': 18.54, '2023-06-01': 25.90, '2023-07-01': 29.55, '2023-08-01': 28.00,
+        '2023-09-01': 30.97, '2023-10-01': 31.98, '2023-11-01': 41.74, '2023-12-01': 47.40,
+        '2024-01-01': 48.14, '2024-02-01': 52.14, '2024-03-01': 51.21, '2024-04-01': 44.00,
+        '2024-05-01': 36.40, '2024-06-01': 27.85, '2024-07-01': 38.68, '2024-08-01': 44.04,
+        '2024-09-01': 43.48, '2024-10-01': 43.79, '2024-11-01': 43.81
     }
     
-    # 2022년 데이터
-    data_2022 = {
-        'dates': ['2022-01', '2022-02', '2022-03', '2022-04', '2022-05', '2022-06'],
-        'actual': [8.8, 7.4, 6.2, 6.3, 8.1, 7.6],
-        'predicted': [9.4, 7.5, 6.1, 5.7, 6.9, 6.8]
+    # AI 예측 데이터 (초록색 - 2025년 4-9월만)
+    ai_predicted_data = {
+        '2024-06-01': 31.01,
+        '2024-07-01': 30.37,
+        '2024-08-01': 34.89,
+        '2024-09-01': 43.14,
+        '2024-10-01': 49.83,
+        '2024-11-01': 56.09
     }
     
-    # 2023년 데이터
-    data_2023 = {
-        'dates': ['2023-01', '2023-02', '2023-03', '2023-04', '2023-05', '2023-06'],
-        'actual': [9.5, 9.6, 14.0, 19.9, 18.5, 25.9],
-        'predicted': [8.5, 7.4, 9.6, 12.5, 13.5, 18.6]
-    }
+    # 날짜를 pandas datetime으로 변환
+    dates = pd.to_datetime(list(actual_data.keys()))
+    actual_values = list(actual_data.values())
     
-    return data_2021, data_2022, data_2023
+    # AI 예측 데이터의 날짜와 값 분리
+    ai_dates = pd.to_datetime(list(ai_predicted_data.keys()))
+    predicted_values = list(ai_predicted_data.values())
+    
+    return dates, actual_values, ai_dates, predicted_values
 
 # 데이터 로드
-data_2021, data_2022, data_2023 = get_kan_prediction_data()
+dates, actual_values, ai_dates, predicted_values = get_kan_prediction_data()
 
-# 연도 선택 탭
-tab1, tab2, tab3 = st.tabs(["2021년 상반기", "2022년 상반기", "2023년 상반기"])
+# 전체 시계열 그래프
+st.markdown("### 🔸 니켈 수급 안정화 지수 시계열 분석")
 
-with tab1:
-    #st.markdown("#### 2021년 상반기 6개월 예측 결과 비교")
-    fig_2021 = go.Figure()
-    
-    fig_2021.add_trace(go.Scatter(
-        x=data_2021['dates'],
-        y=data_2021['actual'],
-        mode='lines+markers+text',
-        name='실제 값 (Actual)',
-        line=dict(color='blue', width=3),
-        marker=dict(size=8, color='blue'),
-        text=[f'{val:.1f}' for val in data_2021['actual']],
-        textposition="top center",
-        textfont=dict(size=10)
-    ))
-    
-    fig_2021.add_trace(go.Scatter(
-        x=data_2021['dates'],
-        y=data_2021['predicted'],
-        mode='lines+markers+text',
-        name='예측 값 (Predicted)',
-        line=dict(color='red', width=3, dash='dash'),
-        marker=dict(size=8, color='red', symbol='x'),
-        text=[f'{val:.1f}' for val in data_2021['predicted']],
-        textposition="bottom center",
-        textfont=dict(size=10)
-    ))
-    
-    fig_2021.update_layout(
-        title="2021년 상반기 6개월 예측 결과 비교",
-        xaxis_title="예측 대상 연월",
-        yaxis_title="수급안정화지수",
-        height=400,
-        showlegend=True,
-        hovermode='x unified',
-        plot_bgcolor='white',
-        paper_bgcolor='white'
+fig_timeseries = go.Figure()
+
+# 실제 수급안정화지수 (파란색)
+fig_timeseries.add_trace(go.Scatter(
+    x=dates,
+    y=actual_values,
+    mode='lines+markers',
+    name='실제 수급 안정화 지수',
+    line=dict(color='blue', width=2),
+    marker=dict(size=4, color='blue'),
+    hovertemplate='<b>실제값</b><br>날짜: %{x}<br>지수: %{y:.2f}<extra></extra>'
+))
+
+# AI 예측 수급안정화지수 (초록색 - 2025년 4-9월만)
+fig_timeseries.add_trace(go.Scatter(
+    x=ai_dates,
+    y=predicted_values,
+    mode='lines+markers',
+    name='AI 예측 수급 안정화 지수',
+    line=dict(color='green', width=2, dash='dot'),
+    marker=dict(size=4, color='green', symbol='circle'),
+    hovertemplate='<b>AI 예측값</b><br>날짜: %{x}<br>지수: %{y:.2f}<extra></extra>'
+))
+
+# 최근 6개월 예측 구간 표시 (빨간색 X)
+# recent_dates = dates[-6:]
+# recent_predictions = [56.2, 49.8, 31.5, 30.2, 28.1, 44.2]  # 임시 예측값
+
+# fig_timeseries.add_trace(go.Scatter(
+#     x=recent_dates,
+#     y=recent_predictions,
+#     mode='markers',
+#     name='최근 6개월 예측',
+#     marker=dict(size=8, color='red', symbol='x'),
+#     hovertemplate='<b>최근 예측</b><br>날짜: %{x}<br>지수: %{y:.2f}<extra></extra>'
+# ))
+
+fig_timeseries.update_layout(
+    title="니켈 수급 안정화 지수 6개월 예측 및 분석 결과",
+    xaxis_title="년",
+    yaxis_title="수급안정화지수",
+    height=500,
+    showlegend=True,
+    hovermode='x unified',
+    plot_bgcolor='white',
+    paper_bgcolor='white',
+    legend=dict(
+        yanchor="top",
+        y=0.99,
+        xanchor="right",
+        x=0.99
     )
-    
-    fig_2021.update_xaxes(showgrid=True, gridwidth=1, gridcolor='lightgray')
-    fig_2021.update_yaxes(showgrid=True, gridwidth=1, gridcolor='lightgray')
-    
-    st.plotly_chart(fig_2021, use_container_width=True)
+)
 
-with tab2:
-    #st.markdown("#### 2022년 상반기 6개월 예측 결과 비교")
-    fig_2022 = go.Figure()
-    
-    fig_2022.add_trace(go.Scatter(
-        x=data_2022['dates'],
-        y=data_2022['actual'],
-        mode='lines+markers+text',
-        name='실제 값 (Actual)',
-        line=dict(color='blue', width=3),
-        marker=dict(size=8, color='blue'),
-        text=[f'{val:.1f}' for val in data_2022['actual']],
-        textposition="top center",
-        textfont=dict(size=10)
-    ))
-    
-    fig_2022.add_trace(go.Scatter(
-        x=data_2022['dates'],
-        y=data_2022['predicted'],
-        mode='lines+markers+text',
-        name='예측 값 (Predicted)',
-        line=dict(color='red', width=3, dash='dash'),
-        marker=dict(size=8, color='red', symbol='x'),
-        text=[f'{val:.1f}' for val in data_2022['predicted']],
-        textposition="bottom center",
-        textfont=dict(size=10)
-    ))
-    
-    fig_2022.update_layout(
-        title="2022년 상반기 6개월 예측 결과 비교",
-        xaxis_title="예측 대상 연월",
-        yaxis_title="수급안정화지수",
-        height=400,
-        showlegend=True,
-        hovermode='x unified',
-        plot_bgcolor='white',
-        paper_bgcolor='white'
-    )
-    
-    fig_2022.update_xaxes(showgrid=True, gridwidth=1, gridcolor='lightgray')
-    fig_2022.update_yaxes(showgrid=True, gridwidth=1, gridcolor='lightgray')
-    
-    st.plotly_chart(fig_2022, use_container_width=True)
+# 그리드 추가
+fig_timeseries.update_xaxes(showgrid=True, gridwidth=1, gridcolor='lightgray')
+fig_timeseries.update_yaxes(showgrid=True, gridwidth=1, gridcolor='lightgray')
 
-with tab3:
-    #st.markdown("#### 2023년 상반기 6개월 예측 결과 비교")
-    fig_2023 = go.Figure()
-    
-    fig_2023.add_trace(go.Scatter(
-        x=data_2023['dates'],
-        y=data_2023['actual'],
-        mode='lines+markers+text',
-        name='실제 값 (Actual)',
-        line=dict(color='blue', width=3),
-        marker=dict(size=8, color='blue'),
-        text=[f'{val:.1f}' for val in data_2023['actual']],
-        textposition="top center",
-        textfont=dict(size=10)
-    ))
-    
-    fig_2023.add_trace(go.Scatter(
-        x=data_2023['dates'],
-        y=data_2023['predicted'],
-        mode='lines+markers+text',
-        name='예측 값 (Predicted)',
-        line=dict(color='red', width=3, dash='dash'),
-        marker=dict(size=8, color='red', symbol='x'),
-        text=[f'{val:.1f}' for val in data_2023['predicted']],
-        textposition="bottom center",
-        textfont=dict(size=10)
-    ))
-    
-    fig_2023.update_layout(
-        title="2023년 상반기 6개월 예측 결과 비교",
-        xaxis_title="예측 대상 연월",
-        yaxis_title="수급안정화지수",
-        height=400,
-        showlegend=True,
-        hovermode='x unified',
-        plot_bgcolor='white',
-        paper_bgcolor='white'
+# 확대/축소 가능하도록 설정
+fig_timeseries.update_layout(
+    xaxis=dict(
+        rangeselector=dict(
+            buttons=list([
+                dict(count=1, label="1년", step="year", stepmode="backward"),
+                dict(count=2, label="2년", step="year", stepmode="backward"),
+                dict(count=3, label="3년", step="year", stepmode="backward"),
+                dict(step="all", label="전체")
+            ])
+        ),
+        type="date"
     )
-    
-    fig_2023.update_xaxes(showgrid=True, gridwidth=1, gridcolor='lightgray')
-    fig_2023.update_yaxes(showgrid=True, gridwidth=1, gridcolor='lightgray')
-    
-    st.plotly_chart(fig_2023, use_container_width=True)
+)
+
+st.plotly_chart(fig_timeseries, use_container_width=True)
 
 # 🎯 스마트 네비게이션
 st.markdown("### 🔸 지능형 분석 도구")
