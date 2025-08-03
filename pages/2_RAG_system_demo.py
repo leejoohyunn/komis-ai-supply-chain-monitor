@@ -484,7 +484,7 @@ def main():
     # 메인 차트
     fig_main = create_interactive_dashboard(demo_df)
     st.plotly_chart(fig_main, use_container_width=True)
-    st.markdown("###🔸  AI 리스크 지수 분석 시스템")
+    st.markdown(" ###🔸  AI 리스크 지수 분석 시스템")
     st.markdown("Gemini 2.5 Flash + RAG 기술로 구현한 지정학적 리스크 분석 시스템 체험")
     st.markdown("---")
     
