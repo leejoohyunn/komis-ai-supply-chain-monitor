@@ -2,8 +2,9 @@ import os
 os.environ["CHROMA_SERVER"] = "false"
 
 # SQLite 버전 문제 해결
-import sqlite3
-
+import sys
+import pysqlite3
+sys.modules["sqlite3"] = pysqlite3
 
 # 그 다음에 chromadb import
 import chromadb
