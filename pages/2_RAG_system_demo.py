@@ -524,7 +524,7 @@ def main():
         selected_mineral = st.sidebar.selectbox("분석할 광물 선택", minerals)
         
         # 메인 화면
-        tab1, tab2, tab3 = st.tabs(["📈 월별 지수", "🔍 상세 분석", "📋 JSON 출력 형식"])
+        tab1, tab2, tab3 = st.tabs([" 월별 지수", " 상세 분석", " JSON 출력 형식"])
         
         with tab1:
             st.header(f"🔸{selected_mineral} 월별 AI 지정학적 리스크 지수")
