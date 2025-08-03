@@ -479,7 +479,7 @@ def main():
     demo_df = create_demo_data()
     
     # 📈 인터랙티브 대시보드 섹션
-    st.header(" ### 🔸 실시간 AI 리스크 분석 대시보드")
+    st.markdown(" ### 🔸 실시간 AI 리스크 분석 대시보드")
     
     # 메인 차트
     fig_main = create_interactive_dashboard(demo_df)
