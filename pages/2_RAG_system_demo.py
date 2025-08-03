@@ -147,10 +147,18 @@ def load_prebuilt_data():
     
     # data 폴더에서 모든 CSV 파일 찾기
     csv_files = []
-    for file in os.listdir(data_dir):
-        if file.endswith('.csv'):
-            csv_files.append(os.path.join(data_dir, file))
+    all_files_in_data = []
     
+    try:
+        for file in os.listdir(data_dir):
+            all_files_in_data.append(file)
+            if file.endswith('.csv'):
+                csv_files.append(os.path.join(data_dir, file))
+    except Exception as e:
+        st.error(f"데이터 폴더 읽기 오류: {e}")
+        return create_sample_data()
+    
+    st.write(f"📂 데이터 폴더의 모든 파일: {all_files_in_data}")
     st.write(f"📄 발견된 CSV 파일: {[os.path.basename(f) for f in csv_files]}")
     
     if not csv_files:
