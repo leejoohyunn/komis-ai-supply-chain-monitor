@@ -439,7 +439,7 @@ def main():
                             results_df = pd.DataFrame(monthly_results)
                             
                             # 평활화 및 지수 계산
-                            results_df['nsi_score_smoothed'] = results_df['nsi_score'].ewm(span=3, adjust=False).mean()
+                            results_df['nsi_score_smoothed'] = results_df['nsi_score'].ewm(span=6, adjust=False).mean()
                             
                             valid_scores = results_df['nsi_score_smoothed'].dropna()
                             if not valid_scores.empty:
