@@ -129,26 +129,69 @@ def create_improved_analysis_chain():
 
 @st.cache_resource
 def load_prebuilt_data():
-    """미리 저장된 데이터 로드"""
-    data_path = os.path.join(os.getcwd(), "data", "광물_주간동향_통합.csv")
+    """미리 저장된 데이터 로드 - 모든 CSV 파일 통합"""
+    # 현재 파일의 디렉토리를 기준으로 상위 디렉토리의 data 폴더 찾기
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    parent_dir = os.path.dirname(current_dir)  # pages 폴더의 상위 디렉토리 (demo)
+    data_dir = os.path.join(parent_dir, "data")
     
-    # 데이터 파일이 없으면 샘플 데이터 생성
-    if not os.path.exists(data_path):
-        st.warning("미리 저장된 데이터 파일을 찾을 수 없습니다. 샘플 데이터를 사용합니다.")
+    # 디버깅용 경로 출력
+    st.write(f"🔍 데이터 폴더 경로: {data_dir}")
+    st.write(f"📁 폴더 존재 여부: {os.path.exists(data_dir)}")
+    
+    # data 폴더가 없으면 샘플 데이터 생성
+    if not os.path.exists(data_dir):
+        st.warning("데이터 폴더를 찾을 수 없습니다. 샘플 데이터를 사용합니다.")
         return create_sample_data()
     
-    try:
-        df = pd.read_csv(data_path, encoding='utf-8')
-    except UnicodeDecodeError:
-        try:
-            df = pd.read_csv(data_path, encoding='cp949')
-        except UnicodeDecodeError:
-            try:
-                df = pd.read_csv(data_path, encoding='euc-kr')
-            except UnicodeDecodeError:
-                df = pd.read_csv(data_path, encoding='utf-8-sig')
+    # data 폴더에서 모든 CSV 파일 찾기
+    csv_files = []
+    for file in os.listdir(data_dir):
+        if file.endswith('.csv'):
+            csv_files.append(os.path.join(data_dir, file))
     
-    return df
+    st.write(f"📄 발견된 CSV 파일: {[os.path.basename(f) for f in csv_files]}")
+    
+    if not csv_files:
+        st.warning("CSV 파일을 찾을 수 없습니다. 샘플 데이터를 사용합니다.")
+        return create_sample_data()
+    
+    # 모든 CSV 파일 로드 및 통합
+    all_dataframes = []
+    
+    for csv_file in csv_files:
+        try:
+            # 다양한 인코딩으로 시도
+            df = None
+            encodings = ['utf-8', 'cp949', 'euc-kr', 'utf-8-sig']
+            
+            for encoding in encodings:
+                try:
+                    df = pd.read_csv(csv_file, encoding=encoding)
+                    st.write(f"✅ {os.path.basename(csv_file)} 로드 성공 (인코딩: {encoding})")
+                    break
+                except UnicodeDecodeError:
+                    continue
+            
+            if df is not None:
+                # 파일명을 소스로 추가
+                df['파일소스'] = os.path.basename(csv_file)
+                all_dataframes.append(df)
+            else:
+                st.warning(f"❌ {os.path.basename(csv_file)} 로드 실패")
+                
+        except Exception as e:
+            st.warning(f"❌ {os.path.basename(csv_file)} 처리 중 오류: {e}")
+    
+    if not all_dataframes:
+        st.warning("로드할 수 있는 CSV 파일이 없습니다. 샘플 데이터를 사용합니다.")
+        return create_sample_data()
+    
+    # 모든 데이터프레임 통합
+    combined_df = pd.concat(all_dataframes, ignore_index=True)
+    st.success(f"🎉 총 {len(csv_files)}개 CSV 파일에서 {len(combined_df)}개 행 로드 완료")
+    
+    return combined_df
 
 def create_sample_data():
     """샘플 데이터 생성 (실제 데이터가 없을 때 사용)"""
