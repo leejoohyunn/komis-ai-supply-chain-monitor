@@ -313,7 +313,7 @@ def create_monthly_index_chart(df):
         mode='lines+markers',
         name='AI 지정학적 리스크 지수',
         line=dict(color='blue', width=2),
-        marker=dict(size=6)
+        marker=dict(size=4)
     ))
     
     fig.add_hline(y=50, line_dash="dash", line_color="red", 
