@@ -424,14 +424,14 @@ def create_interactive_dashboard(demo_df):
     # 메인 비교 차트
     fig_main = go.Figure()
     
-    # AI 리스크 지수 (빨간색)
+    # AI 리스크 지수 (초록색 점선)
     fig_main.add_trace(go.Scatter(
         x=demo_df['date'],
         y=demo_df['ai_risk_index'],
         mode='lines+markers',
         name='AI 지정학적 리스크 지수',
-        line=dict(color='#FF6B6B', width=3),
-        marker=dict(size=5, color='#FF6B6B'),
+        line=dict(color='green', width=2, dash='dot'),
+        marker=dict(size=4, color='green', symbol='circle'),
         hovertemplate='<b>AI 리스크 지수</b><br>날짜: %{x}<br>지수: %{y:.1f}<extra></extra>'
     ))
     
