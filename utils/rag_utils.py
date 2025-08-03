@@ -21,6 +21,38 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.documents import Document
 from langchain.chains import RetrievalQA
 
+import re
+import pandas as pd
+
+def extract_year_month(date_str: str) -> str:
+    if not date_str or not isinstance(date_str, str):
+        return ""
+    
+    date_str = date_str.strip()
+
+    # 1. Try standard date parsing first (e.g., 5/21/2025)
+    try:
+        dt = pd.to_datetime(date_str, errors='coerce', dayfirst=False)
+        if pd.notna(dt):
+            return dt.strftime('%Y%m')
+    except:
+        pass
+
+    # 2. Match YYYYMM format
+    match_ym = re.match(r'^(\d{4})(\d{2})$', date_str)
+    if match_ym:
+        return date_str
+
+    # 3. Match YYMMDD format
+    match_yymmdd = re.match(r'^(\d{2})(\d{2})(\d{2})$', date_str)
+    if match_yymmdd:
+        yy, mm, dd = match_yymmdd.groups()
+        yyyy = '20' + yy if int(yy) < 50 else '19' + yy
+        return f"{yyyy}{mm}"
+
+    return ""
+
+
 # --- 1. RAG 데이터베이스 구축 (업로드된 파일들 처리) ---
 def setup_rag_database_from_files(uploaded_files):
     """
