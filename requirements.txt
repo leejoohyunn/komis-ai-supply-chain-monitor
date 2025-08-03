@@ -14,3 +14,4 @@ hnswlib==0.8.0
 pysqlite3-binary
 numpy==1.26.4
 pandas
+openpyxl
