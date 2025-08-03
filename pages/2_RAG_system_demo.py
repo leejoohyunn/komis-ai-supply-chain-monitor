@@ -2,9 +2,8 @@ import os
 os.environ["CHROMA_SERVER"] = "false"
 
 # SQLite 버전 문제 해결
-import sys
-import pysqlite3
-sys.modules["sqlite3"] = pysqlite3
+import sqlite3
+
 
 # 그 다음에 chromadb import
 import chromadb
@@ -128,8 +127,70 @@ def create_improved_analysis_chain():
     llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash-lite-preview-06-17", temperature=0)
     return prompt_template | llm | StrOutputParser()
 
-def setup_rag_database(df):
-    """RAG 데이터베이스 구축"""
+@st.cache_resource
+def load_prebuilt_data():
+    """미리 저장된 데이터 로드"""
+    data_path = os.path.join(os.getcwd(), "data", "광물_주간동향_통합.csv")
+    
+    # 데이터 파일이 없으면 샘플 데이터 생성
+    if not os.path.exists(data_path):
+        st.warning("미리 저장된 데이터 파일을 찾을 수 없습니다. 샘플 데이터를 사용합니다.")
+        return create_sample_data()
+    
+    try:
+        df = pd.read_csv(data_path, encoding='utf-8')
+    except UnicodeDecodeError:
+        try:
+            df = pd.read_csv(data_path, encoding='cp949')
+        except UnicodeDecodeError:
+            try:
+                df = pd.read_csv(data_path, encoding='euc-kr')
+            except UnicodeDecodeError:
+                df = pd.read_csv(data_path, encoding='utf-8-sig')
+    
+    return df
+
+def create_sample_data():
+    """샘플 데이터 생성 (실제 데이터가 없을 때 사용)"""
+    sample_data = {
+        '날짜': ['160101', '160102', '160103', '160201', '160202'],
+        '광물이름': ['니켈', '니켈', '니켈', '니켈', '니켈'],
+        '보고서 내용': [
+            '글로벌 니켈 가격이 상승하고 있다. 중국의 수요 증가가 주요 원인으로 분석된다.',
+            '인도네시아의 니켈 광산에서 생산량이 감소했다는 보고가 있었다.',
+            '러시아 니켈 생산업체의 수출 제한 조치가 발표되었다.',
+            '니켈 재고량이 전월 대비 20% 감소했다고 LME에서 발표했다.',
+            '전기차 배터리 수요 증가로 니켈 가격 상승 압력이 지속되고 있다.'
+        ]
+    }
+    return pd.DataFrame(sample_data)
+
+@st.cache_resource
+def setup_rag_database():
+    """RAG 데이터베이스 구축 (persist 기능 포함)"""
+    
+    # Windows 환경에 맞는 persist 디렉토리 설정
+    persist_directory = os.path.join(os.getcwd(), "chroma_db")
+    
+    # 임베딩 모델 초기화
+    embedding_model = HuggingFaceEmbeddings(model_name="snunlp/KR-SBERT-V40K-klueNLI-augSTS")
+    
+    # 기존 벡터스토어가 있는지 확인
+    if os.path.exists(persist_directory):
+        try:
+            # 기존 벡터스토어 로드
+            vectorstore = Chroma(
+                persist_directory=persist_directory,
+                embedding_function=embedding_model,
+                collection_name="rag_collection"
+            )
+            st.success("💾 기존 벡터스토어를 성공적으로 로드했습니다!")
+            return vectorstore, embedding_model
+        except Exception as e:
+            st.warning(f"기존 벡터스토어 로드 실패: {e}. 새로 생성합니다.")
+    
+    # 새로운 벡터스토어 생성
+    df = load_prebuilt_data()
     all_docs = []
     
     for _, row in df.iterrows():
@@ -159,7 +220,7 @@ def setup_rag_database(df):
         metadata = {
             "년월": year_month,
             "광물": str(row.get("광물이름", "")),
-            "source": "uploaded_data"
+            "source": "prebuilt_data"
         }
         
         doc = Document(page_content=content, metadata=metadata)
@@ -171,17 +232,15 @@ def setup_rag_database(df):
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1500, chunk_overlap=100)
     splits = text_splitter.split_documents(all_docs)
     
-    embedding_model = HuggingFaceEmbeddings(model_name="snunlp/KR-SBERT-V40K-klueNLI-augSTS")
-    
-
-    # persist_directory 제거하여 인메모리 모드 사용
+    # persist_directory를 사용하여 벡터스토어 생성 및 저장
     vectorstore = Chroma.from_documents(
         documents=splits,
         embedding=embedding_model,
-    # persist_directory="/tmp/chroma_db" ← 이 부분 제거
-        collection_name=f"rag_collection_{hash(str(splits[:10]))}"
+        persist_directory=persist_directory,
+        collection_name="rag_collection"
     )
     
+    st.success("🔄 새로운 벡터스토어를 생성하고 저장했습니다!")
     return vectorstore, embedding_model
 
 def get_sentences_from_text_with_llm(text_block: str, llm) -> list[str]:
@@ -471,7 +530,7 @@ def create_interactive_dashboard(demo_df):
 
 # Streamlit 앱 메인
 def main():
-    st.title(" AI 리스크 지수 분석 시스템")
+    st.title("🚀 AI 리스크 지수 분석 시스템")
     st.markdown("Gemini 2.5 Flash + RAG 기술로 구현한 지정학적 리스크 분석 시스템 체험")
     st.markdown("---")
     
@@ -479,12 +538,12 @@ def main():
     demo_df = create_demo_data()
     
     # 📈 인터랙티브 대시보드 섹션
-    st.markdown(" ### 🔸 실시간 AI 리스크 분석 대시보드")
+    st.markdown("### 🔸 실시간 AI 리스크 분석 대시보드")
     
     # 메인 차트
     fig_main = create_interactive_dashboard(demo_df)
     st.plotly_chart(fig_main, use_container_width=True)
-    st.markdown(" ### 🔸  AI 리스크 지수 분석 시스템")
+    st.markdown("### 🔸 AI 리스크 지수 분석 시스템")
     st.markdown("Gemini 2.5 Flash + RAG 기술로 구현한 지정학적 리스크 분석 시스템 체험")
     st.markdown("---")
     
@@ -494,180 +553,190 @@ def main():
     # API 키는 이미 하드코딩되어 있음
     st.sidebar.info("Google API Key가 설정되어 있습니다.")
     
-    # 파일 업로드
-    uploaded_file = st.sidebar.file_uploader(
-        "CSV 파일 업로드",
-        type=['csv'],
-        help="광물_주간동향_통합.csv 파일을 업로드하세요"
-    )
+    # 데이터 자동 로드
+    with st.spinner("📊 데이터 로딩 중..."):
+        df = load_prebuilt_data()
     
-    if uploaded_file is not None:
-        # 데이터 로딩 (여러 인코딩 시도)
-        try:
-            df = pd.read_csv(uploaded_file, encoding='utf-8')
-        except UnicodeDecodeError:
-            try:
-                df = pd.read_csv(uploaded_file, encoding='cp949')
-            except UnicodeDecodeError:
-                try:
-                    df = pd.read_csv(uploaded_file, encoding='euc-kr')
-                except UnicodeDecodeError:
-                    try:
-                        df = pd.read_csv(uploaded_file, encoding='utf-8-sig')
-                    except UnicodeDecodeError:
-                        st.error("파일 인코딩을 인식할 수 없습니다. UTF-8, CP949, EUC-KR, UTF-8-SIG 형식으로 저장된 파일을 업로드해주세요.")
-                        return
-        st.sidebar.success(f"데이터 로딩 완료: {len(df)}개 행")
+    st.sidebar.success(f"✅ 데이터 로딩 완료: {len(df)}개 행")
+    
+    # 광물 선택
+    minerals = df['광물이름'].unique()
+    selected_mineral = st.sidebar.selectbox("분석할 광물 선택", minerals)
+    
+    # 벡터스토어 관리 옵션
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("📊 벡터스토어 관리")
+    
+    # 기존 벡터스토어 존재 여부 확인
+    persist_directory = os.path.join(os.getcwd(), "chroma_db")
+    vectorstore_exists = os.path.exists(persist_directory)
+    
+    if vectorstore_exists:
+        st.sidebar.success("💾 저장된 벡터스토어가 있습니다")
+        force_rebuild = st.sidebar.button("🔄 벡터스토어 재생성", help="새로운 데이터로 벡터스토어를 다시 만듭니다")
+    else:
+        st.sidebar.info("📁 저장된 벡터스토어가 없습니다")
+        force_rebuild = False
+    
+    # 메인 화면
+    tab1, tab2, tab3 = st.tabs(["📊 월별 지수", "🔍 상세 분석", "📋 JSON 출력 형식"])
+    
+    with tab1:
+        st.header(f"🔸{selected_mineral} 월별 AI 지정학적 리스크 지수")
         
-        # 광물 선택
-        minerals = df['광물이름'].unique()
-        selected_mineral = st.sidebar.selectbox("분석할 광물 선택", minerals)
-        
-        # 메인 화면
-        tab1, tab2, tab3 = st.tabs([" 월별 지수", " 상세 분석", " JSON 출력 형식"])
-        
-        with tab1:
-            st.header(f"🔸{selected_mineral} 월별 AI 지정학적 리스크 지수")
+        if st.button("🚀 지수 생성 시작", type="primary"):
+            if not os.getenv("GOOGLE_API_KEY"):
+                st.error("Google API Key가 설정되지 않았습니다.")
+                return
             
-            if st.button("지수 생성 시작"):
-                if not os.getenv("GOOGLE_API_KEY"):
-                    st.error("Google API Key가 설정되지 않았습니다.")
-                    return
+            # 벡터스토어 로드 또는 생성
+            if force_rebuild:
+                # 기존 벡터스토어 삭제 후 재생성
+                if os.path.exists(persist_directory):
+                    import shutil
+                    shutil.rmtree(persist_directory)
+                st.cache_resource.clear()  # 캐시 클리어
+            
+            with st.spinner("🔄 벡터스토어 설정 중..."):
+                vectorstore, _ = setup_rag_database()
+            
+            if vectorstore:
+                with st.spinner("🤖 AI 분석 체인 생성 중..."):
+                    analysis_chain = create_improved_analysis_chain()
                 
-                with st.spinner("RAG 데이터베이스 구축 중..."):
-                    vectorstore, _ = setup_rag_database(df)
-                
-                if vectorstore:
-                    with st.spinner("AI 분석 체인 생성 중..."):
-                        analysis_chain = create_improved_analysis_chain()
-                    
-                    if analysis_chain:
-                        # 월별 데이터 분석 (YYMMDD -> YYYY-MM 형식으로 변환)
-                        df['날짜'] = df['날짜'].astype(str)
-                        # 160111 -> 201601 형식으로 변환
-                        def convert_date_format(date_str):
-                            date_str = str(date_str).strip()
-                            if len(date_str) == 6 and date_str.isdigit():
-                                potential_year = date_str[:4]
-                                potential_month = date_str[4:6]
-                                
-                                if (1900 <= int(potential_year) <= 2100 and 1 <= int(potential_month) <= 12):
-                                    return date_str  # YYYYMM 형식 (202301)
-                                else:
-                                    # YYMMDD 형식 (160111)
-                                    yy = date_str[:2]
-                                    mm = date_str[2:4]
-                                    yyyy = f"20{yy}" if int(yy) <= 30 else f"19{yy}"
-                                    return f"{yyyy}{mm}"
-                            elif len(date_str) >= 4:
-                                return f"20{date_str[:2]}{date_str[2:4]}"
+                if analysis_chain:
+                    # 월별 데이터 분석 (YYMMDD -> YYYY-MM 형식으로 변환)
+                    df['날짜'] = df['날짜'].astype(str)
+                    # 160111 -> 201601 형식으로 변환
+                    def convert_date_format(date_str):
+                        date_str = str(date_str).strip()
+                        if len(date_str) == 6 and date_str.isdigit():
+                            potential_year = date_str[:4]
+                            potential_month = date_str[4:6]
+                            
+                            if (1900 <= int(potential_year) <= 2100 and 1 <= int(potential_month) <= 12):
+                                return date_str  # YYYYMM 형식 (202301)
                             else:
-                                return date_str
+                                # YYMMDD 형식 (160111)
+                                yy = date_str[:2]
+                                mm = date_str[2:4]
+                                yyyy = f"20{yy}" if int(yy) <= 30 else f"19{yy}"
+                                return f"{yyyy}{mm}"
+                        elif len(date_str) >= 4:
+                            return f"20{date_str[:2]}{date_str[2:4]}"
+                        else:
+                            return date_str
+                    
+                    df['년월'] = df['날짜'].apply(convert_date_format)
+                    
+                    available_months = sorted(df[df['광물이름'] == selected_mineral]['년월'].unique())
+                    
+                    if not available_months:
+                        st.warning(f"{selected_mineral}에 대한 데이터가 없습니다.")
+                        return
+                    
+                    monthly_results = []
+                    progress_bar = st.progress(0)
+                    
+                    for i, month in enumerate(available_months):
+                        st.write(f"분석 중: {month[:4]}년 {month[4:6]}월")
                         
-                        df['년월'] = df['날짜'].apply(convert_date_format)
+                        nsi_score, analysis_results = analyze_monthly_data(
+                            vectorstore, analysis_chain, selected_mineral, month
+                        )
                         
-                        available_months = sorted(df[df['광물이름'] == selected_mineral]['년월'].unique())
+                        if nsi_score is not None:
+                            monthly_results.append({
+                                'date': pd.to_datetime(f"{month}01", format='%Y%m%d'),
+                                'nsi_score': nsi_score,
+                                'month': month,
+                                'analysis_results': analysis_results
+                            })
                         
-                        monthly_results = []
-                        progress_bar = st.progress(0)
+                        progress_bar.progress((i + 1) / len(available_months))
+                    
+                    if monthly_results:
+                        results_df = pd.DataFrame(monthly_results)
                         
-                        for i, month in enumerate(available_months):
-                            st.write(f"분석 중: {month[:4]}년 {month[4:6]}월")
-                            
-                            nsi_score, analysis_results = analyze_monthly_data(
-                                vectorstore, analysis_chain, selected_mineral, month
-                            )
-                            
-                            if nsi_score is not None:
-                                monthly_results.append({
-                                    'date': pd.to_datetime(f"{month}01", format='%Y%m%d'),
-                                    'nsi_score': nsi_score,
-                                    'month': month,
-                                    'analysis_results': analysis_results
-                                })
-                            
-                            progress_bar.progress((i + 1) / len(available_months))
+                        # 평활화 및 지수 계산
+                        results_df['nsi_score_smoothed'] = results_df['nsi_score'].ewm(span=6, adjust=False).mean()
                         
-                        if monthly_results:
-                            results_df = pd.DataFrame(monthly_results)
-                            
-                            # 평활화 및 지수 계산
-                            results_df['nsi_score_smoothed'] = results_df['nsi_score'].ewm(span=6, adjust=False).mean()
-                            
-                            valid_scores = results_df['nsi_score_smoothed'].dropna()
-                            if not valid_scores.empty:
-                                min_val, max_val = valid_scores.min(), valid_scores.max()
-                                range_val = max_val - min_val
-                                if range_val == 0:
-                                    results_df['final_supply_demand_index'] = 50.0
-                                else:
-                                    results_df['final_supply_demand_index'] = results_df.apply(
-                                        lambda row: ((row['nsi_score_smoothed'] - min_val) / range_val) * 100 
-                                        if pd.notna(row['nsi_score_smoothed']) else np.nan, axis=1
-                                    )
-                            
-                            # 차트 표시
-                            fig = create_monthly_index_chart(results_df)
-                            st.plotly_chart(fig, use_container_width=True)
-                            
-                            # 데이터 테이블 표시
-                            st.subheader("📊 월별 지수 데이터")
-                            display_df = results_df[['date', 'final_supply_demand_index', 'nsi_score']].copy()
-                            display_df['date'] = display_df['date'].dt.strftime('%Y-%m')
-                            display_df.columns = ['날짜', 'AI 지수', 'NSI 점수']
-                            st.dataframe(display_df)
-                            
-                            # 세션 상태에 결과 저장
-                            st.session_state['monthly_results'] = monthly_results
-                
-        with tab2:
-            st.header("🔸 특정 월 상세 분석")
+                        valid_scores = results_df['nsi_score_smoothed'].dropna()
+                        if not valid_scores.empty:
+                            min_val, max_val = valid_scores.min(), valid_scores.max()
+                            range_val = max_val - min_val
+                            if range_val == 0:
+                                results_df['final_supply_demand_index'] = 50.0
+                            else:
+                                results_df['final_supply_demand_index'] = results_df.apply(
+                                    lambda row: ((row['nsi_score_smoothed'] - min_val) / range_val) * 100 
+                                    if pd.notna(row['nsi_score_smoothed']) else np.nan, axis=1
+                                )
+                        
+                        # 차트 표시
+                        fig = create_monthly_index_chart(results_df)
+                        st.plotly_chart(fig, use_container_width=True)
+                        
+                        # 데이터 테이블 표시
+                        st.subheader("📊 월별 지수 데이터")
+                        display_df = results_df[['date', 'final_supply_demand_index', 'nsi_score']].copy()
+                        display_df['date'] = display_df['date'].dt.strftime('%Y-%m')
+                        display_df.columns = ['날짜', 'AI 지수', 'NSI 점수']
+                        st.dataframe(display_df)
+                        
+                        # 세션 상태에 결과 저장
+                        st.session_state['monthly_results'] = monthly_results
+                    else:
+                        st.warning("분석할 수 있는 데이터가 없습니다.")
+    
+    with tab2:
+        st.header("🔸 특정 월 상세 분석")
+        
+        if 'monthly_results' in st.session_state:
+            months = [result['month'] for result in st.session_state['monthly_results']]
+            selected_month = st.selectbox(
+                "분석할 월 선택",
+                months,
+                format_func=lambda x: f"{x[:4]}년 {x[4:6]}월"
+            )
             
-            if 'monthly_results' in st.session_state:
-                months = [result['month'] for result in st.session_state['monthly_results']]
-                selected_month = st.selectbox(
-                    "분석할 월 선택",
-                    months,
-                    format_func=lambda x: f"{x[:4]}년 {x[4:6]}월"
+            if selected_month:
+                month_data = next(
+                    (result for result in st.session_state['monthly_results'] 
+                     if result['month'] == selected_month), None
                 )
                 
-                if selected_month:
-                    month_data = next(
-                        (result for result in st.session_state['monthly_results'] 
-                         if result['month'] == selected_month), None
-                    )
+                if month_data:
+                    st.subheader(f"{selected_month[:4]}년 {selected_month[4:6]}월 분석 결과")
                     
-                    if month_data:
-                        st.subheader(f"{selected_month[:4]}년 {selected_month[4:6]}월 분석 결과")
-                        
-                        # 요약 정보
-                        col1, col2, col3 = st.columns(3)
-                        with col1:
-                            st.metric("NSI 점수", f"{month_data['nsi_score']:.3f}")
-                        with col2:
-                            positive_count = sum(1 for item in month_data['analysis_results'] 
-                                               if item.get('classification') == 'Positive')
-                            st.metric("긍정 요인", positive_count)
-                        with col3:
-                            negative_count = sum(1 for item in month_data['analysis_results'] 
-                                               if item.get('classification') == 'Negative')
-                            st.metric("부정 요인", negative_count)
-                        
-                        # 상세 분석 결과
-                        st.subheader("🔸 분석 상세 내용")
-                        for i, item in enumerate(month_data['analysis_results']):
-                            with st.expander(f"분석 {i+1}: {item.get('classification', 'N/A')} ({item.get('intensity', 'N/A')})"):
-                                st.write("**원문:**", item.get('text', ''))
-                                st.write("**분류:**", item.get('classification', ''))
-                                st.write("**강도:**", item.get('intensity', ''))
-                                st.write("**분석 이유:**", item.get('reason', ''))
-            else:
-                st.info("먼저 '월별 지수' 탭에서 분석을 실행해주세요.")
+                    # 요약 정보
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("NSI 점수", f"{month_data['nsi_score']:.3f}")
+                    with col2:
+                        positive_count = sum(1 for item in month_data['analysis_results'] 
+                                           if item.get('classification') == 'Positive')
+                        st.metric("긍정 요인", positive_count)
+                    with col3:
+                        negative_count = sum(1 for item in month_data['analysis_results'] 
+                                           if item.get('classification') == 'Negative')
+                        st.metric("부정 요인", negative_count)
+                    
+                    # 상세 분석 결과
+                    st.subheader("🔸 분석 상세 내용")
+                    for i, item in enumerate(month_data['analysis_results']):
+                        with st.expander(f"분석 {i+1}: {item.get('classification', 'N/A')} ({item.get('intensity', 'N/A')})"):
+                            st.write("**원문:**", item.get('text', ''))
+                            st.write("**분류:**", item.get('classification', ''))
+                            st.write("**강도:**", item.get('intensity', ''))
+                            st.write("**분석 이유:**", item.get('reason', ''))
+        else:
+            st.info("먼저 '월별 지수' 탭에서 분석을 실행해주세요.")
+    
+    with tab3:
+        st.header("🔸create_improved_analysis_chain 출력 JSON 형식")
         
-        with tab3:
-            st.header("🔸create_improved_analysis_chain 출력 JSON 형식")
-            
-            st.code("""
+        st.code("""
 {
     "analysis": [
         {
@@ -679,22 +748,19 @@ def main():
     ],
     "overall_summary": "이번 달의 긍정/부정 요인들을 종합하여 한두 문장으로 요약"
 }
-            """, language="json")
-            
-            st.markdown("""
-            ### 🔸 JSON 형식 설명
-            
-            - **analysis**: 각 문장별 분석 결과 배열
-              - **sentence**: 분석된 원본 문장
-              - **classification**: 긍정(Positive), 부정(Negative), 중립(Neutral) 분류
-              - **intensity**: 영향 강도 - 높음(High), 중간(Medium), 낮음(Low)
-              - **reason**: AI의 판단 근거와 추론 과정
-            
-            - **overall_summary**: 해당 월의 전체적인 시장 상황 요약
-            """)
-    
-    else:
-        st.info("사이드바에서 CSV 파일을 업로드해주세요.")
+        """, language="json")
+        
+        st.markdown("""
+        ### 🔸 JSON 형식 설명
+        
+        - **analysis**: 각 문장별 분석 결과 배열
+          - **sentence**: 분석된 원본 문장
+          - **classification**: 긍정(Positive), 부정(Negative), 중립(Neutral) 분류
+          - **intensity**: 영향 강도 - 높음(High), 중간(Medium), 낮음(Low)
+          - **reason**: AI의 판단 근거와 추론 과정
+        
+        - **overall_summary**: 해당 월의 전체적인 시장 상황 요약
+        """)
 
     # 돌아가기 버튼
     st.markdown("---")
