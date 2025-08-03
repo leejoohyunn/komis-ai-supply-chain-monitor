@@ -19,6 +19,12 @@ import json
 from datetime import datetime
 import time
 
+# Excel 파일 처리를 위한 라이브러리 (openpyxl은 pandas에서 Excel 읽기용으로 사용)
+try:
+    import openpyxl
+except ImportError:
+    st.warning("⚠️ openpyxl이 설치되지 않아 Excel 파일 처리가 제한될 수 있습니다.")
+
 # Langchain imports
 from chromadb.config import Settings  # 이 줄을 파일 상단에 추가
 from langchain_community.document_loaders import CSVLoader
@@ -130,7 +136,7 @@ def create_improved_analysis_chain():
 
 @st.cache_resource
 def load_prebuilt_data():
-    """미리 저장된 데이터 로드 - 모든 CSV 파일 통합"""
+    """미리 저장된 데이터 로드 - 모든 CSV/Excel 파일 통합"""
     # 현재 파일의 디렉토리를 기준으로 상위 디렉토리의 data 폴더 찾기
     current_dir = os.path.dirname(os.path.abspath(__file__))
     parent_dir = os.path.dirname(current_dir)  # pages 폴더의 상위 디렉토리 (demo)
@@ -145,60 +151,76 @@ def load_prebuilt_data():
         st.warning("데이터 폴더를 찾을 수 없습니다. 샘플 데이터를 사용합니다.")
         return create_sample_data()
     
-    # data 폴더에서 모든 CSV 파일 찾기
-    csv_files = []
+    # data 폴더에서 모든 CSV/Excel 파일 찾기
+    data_files = []
     all_files_in_data = []
     
     try:
         for file in os.listdir(data_dir):
             all_files_in_data.append(file)
-            if file.endswith('.csv'):
-                csv_files.append(os.path.join(data_dir, file))
+            if file.endswith(('.csv', '.xlsx', '.xls')):
+                data_files.append(os.path.join(data_dir, file))
     except Exception as e:
         st.error(f"데이터 폴더 읽기 오류: {e}")
         return create_sample_data()
     
     st.write(f"📂 데이터 폴더의 모든 파일: {all_files_in_data}")
-    st.write(f"📄 발견된 CSV 파일: {[os.path.basename(f) for f in csv_files]}")
+    st.write(f"📄 발견된 데이터 파일: {[os.path.basename(f) for f in data_files]}")
     
-    if not csv_files:
-        st.warning("CSV 파일을 찾을 수 없습니다. 샘플 데이터를 사용합니다.")
+    if not data_files:
+        st.warning("CSV/Excel 파일을 찾을 수 없습니다. 샘플 데이터를 사용합니다.")
         return create_sample_data()
     
-    # 모든 CSV 파일 로드 및 통합
+    # 모든 데이터 파일 로드 및 통합
     all_dataframes = []
     
-    for csv_file in csv_files:
+    for data_file in data_files:
         try:
-            # 다양한 인코딩으로 시도
             df = None
-            encodings = ['utf-8', 'cp949', 'euc-kr', 'utf-8-sig']
+            file_name = os.path.basename(data_file)
+            file_ext = os.path.splitext(data_file)[1].lower()
             
-            for encoding in encodings:
+            if file_ext == '.csv':
+                # CSV 파일 처리 - 다양한 인코딩으로 시도
+                encodings = ['utf-8', 'cp949', 'euc-kr', 'utf-8-sig']
+                
+                for encoding in encodings:
+                    try:
+                        df = pd.read_csv(data_file, encoding=encoding)
+                        st.write(f"✅ {file_name} 로드 성공 (CSV, 인코딩: {encoding})")
+                        break
+                    except UnicodeDecodeError:
+                        continue
+                    except Exception as e:
+                        st.warning(f"❌ {file_name} CSV 읽기 오류: {e}")
+                        break
+                        
+            elif file_ext in ['.xlsx', '.xls']:
+                # Excel 파일 처리
                 try:
-                    df = pd.read_csv(csv_file, encoding=encoding)
-                    st.write(f"✅ {os.path.basename(csv_file)} 로드 성공 (인코딩: {encoding})")
-                    break
-                except UnicodeDecodeError:
-                    continue
+                    df = pd.read_excel(data_file)
+                    st.write(f"✅ {file_name} 로드 성공 (Excel)")
+                except Exception as e:
+                    st.warning(f"❌ {file_name} Excel 읽기 오류: {e}")
             
             if df is not None:
                 # 파일명을 소스로 추가
-                df['파일소스'] = os.path.basename(csv_file)
+                df['파일소스'] = file_name
                 all_dataframes.append(df)
+                st.write(f"📊 {file_name}: {len(df)}개 행")
             else:
-                st.warning(f"❌ {os.path.basename(csv_file)} 로드 실패")
+                st.warning(f"❌ {file_name} 로드 실패")
                 
         except Exception as e:
-            st.warning(f"❌ {os.path.basename(csv_file)} 처리 중 오류: {e}")
+            st.warning(f"❌ {os.path.basename(data_file)} 처리 중 오류: {e}")
     
     if not all_dataframes:
-        st.warning("로드할 수 있는 CSV 파일이 없습니다. 샘플 데이터를 사용합니다.")
+        st.warning("로드할 수 있는 데이터 파일이 없습니다. 샘플 데이터를 사용합니다.")
         return create_sample_data()
     
     # 모든 데이터프레임 통합
     combined_df = pd.concat(all_dataframes, ignore_index=True)
-    st.success(f"🎉 총 {len(csv_files)}개 CSV 파일에서 {len(combined_df)}개 행 로드 완료")
+    st.success(f"🎉 총 {len(data_files)}개 데이터 파일에서 {len(combined_df)}개 행 로드 완료")
     
     return combined_df
 
